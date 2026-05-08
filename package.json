@@ -1,0 +1,62 @@
+{
+  "name": "cmdb",
+  "version": "2.2.2",
+  "description": "CMDB - Configuration Management Database",
+  "main": "main.js",
+  "author": "Bnani.labs",
+  "license": "MIT",
+  "scripts": {
+    "start": "electron .",
+    "dist:win": "electron-builder --win --x64"
+  },
+  "devDependencies": {
+    "electron": "^31.7.7",
+    "electron-builder": "^24.13.3"
+  },
+  "build": {
+    "appId": "com.cmdb.app",
+    "productName": "CMDB",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "main.js",
+      "preload.js",
+      "index.html",
+      "app.js",
+      "styles.css",
+      "lib/**",
+      "fonts/**",
+      "assets/**"
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "portable",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "assets/icon.ico"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "CMDB",
+      "installerIcon": "assets/icon.ico",
+      "uninstallerIcon": "assets/icon.ico"
+    },
+    "portable": {
+      "artifactName": "CMDB-portable-${version}.exe"
+    }
+  }
+}

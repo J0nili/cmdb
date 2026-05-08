@@ -1,0 +1,956 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="CMDB — Configuration Management Database. Multi-source asset tracking, comparison and analytics.">
+  <title>CMDB — Configuration Management Database</title>
+
+  <!--
+    ┌─────────────────────────────────────────────────────┐
+    │  FONT STRATEGY                                       │
+    │  1. Local woff2 files (offline / packaged)          │
+    │  2. CDN fallback (online) via preconnect            │
+    │  3. System monospace / sans-serif as last resort    │
+    └─────────────────────────────────────────────────────┘
+    Run download-libs.sh to get local copies of all assets.
+  -->
+  <!-- Google Fonts API: fallback online confiable (sin URLs gstatic directas que dan 404) -->
+  <link rel="stylesheet" href="styles.css">
+  <!-- Fuentes locales: sobreescriben Google Fonts si están descargadas (modo offline / Electron) -->
+  <style>
+    /* Local-first font strategy: offline files → CDN fallback */
+    @font-face { font-family:'IBM Plex Mono'; font-weight:400; font-display:swap;
+      src: url('fonts/IBMPlexMono-400.woff2') format('woff2'); }
+    @font-face { font-family:'IBM Plex Mono'; font-weight:500; font-display:swap;
+      src: url('fonts/IBMPlexMono-500.woff2') format('woff2'); }
+    @font-face { font-family:'IBM Plex Mono'; font-weight:600; font-display:swap;
+      src: url('fonts/IBMPlexMono-600.woff2') format('woff2'); }
+    @font-face { font-family:'DM Sans'; font-weight:300; font-display:swap;
+      src: url('fonts/DMSans-300.woff2') format('woff2'); }
+    @font-face { font-family:'DM Sans'; font-weight:400; font-display:swap;
+      src: url('fonts/DMSans-400.woff2') format('woff2'); }
+    @font-face { font-family:'DM Sans'; font-weight:500; font-display:swap;
+      src: url('fonts/DMSans-500.woff2') format('woff2'); }
+    @font-face { font-family:'DM Sans'; font-weight:600; font-display:swap;
+      src: url('fonts/DMSans-600.woff2') format('woff2'); }
+  </style>
+</head>
+<body>
+
+  <!-- ═══════════════════ WELCOME SCREEN ═══════════════════ -->
+  <div id="welcome" class="welcome">
+    <div class="aurora-bg"><div class="aurora-blob aurora-1"></div><div class="aurora-blob aurora-2"></div><div class="aurora-blob aurora-3"></div><div class="aurora-blob aurora-4"></div></div>
+    <div class="welcome-grid"></div>
+    <canvas id="welcomeCanvas"></canvas>
+
+
+
+    <!-- Panel único para ambos temas — visible por defecto -->
+    <div id="welcomeDefault" class="welcome-content">
+      <div class="welcome-tag">v4.0 &mdash; Configuration Management</div>
+      <div class="welcome-title-wrap">
+        <h1 class="welcome-title" id="cmdbTitle">CMDB</h1>
+      </div>
+      <p class="welcome-sub">Configuration Management Database</p>
+      <p class="welcome-desc">Multi-source asset tracking &middot; Comparison engine &middot; Analytics</p>
+      <button class="welcome-btn glow-btn" onclick="exitWelcome()">
+        <span>Get Started</span>
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M3 8h10M9 4l4 4-4 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </button>
+      <p id="welcomeCacheHint" style="display:none;margin-top:14px;font-size:.78rem;color:rgba(255,255,255,.55);letter-spacing:.01em"></p>
+      <div class="welcome-hint">Press <kbd>ESC</kbd> to skip</div>
+    </div>
+
+    <div class="welcome-scanline"></div>
+  </div>
+
+  <!-- ═══════════════════ LIB ERROR BANNER ═══════════════════ -->
+  <div id="libError" style="display:none;position:fixed;inset:0;z-index:99999;background:var(--bg);align-items:center;justify-content:center;flex-direction:column;gap:16px;font-family:IBM Plex Mono,monospace;padding:32px;text-align:center">
+    <svg width="48" height="48" viewBox="0 0 48 48" fill="none"><circle cx="24" cy="24" r="22" stroke="#b84040" stroke-width="2"/><path d="M24 14v12M24 32v2" stroke="#b84040" stroke-width="2.5" stroke-linecap="round"/></svg>
+    <div style="font-size:1.1rem;font-weight:600;color:var(--txt)">Required libraries could not load</div>
+    <div style="font-size:.82rem;color:var(--txt3);max-width:420px;line-height:1.6">
+      CMDB requires <strong>XLSX.js</strong> and <strong>ECharts</strong> to work.<br>
+      Run <code style="background:var(--bg2);padding:2px 6px;border-radius:3px">download-libs.sh</code> to install them locally,<br>
+      or connect to the internet and reload.
+    </div>
+    <button onclick="location.reload()" style="margin-top:8px;padding:10px 24px;border:1px solid var(--brd);border-radius:4px;background:var(--bg2);color:var(--txt);cursor:pointer;font-family:inherit">Reload</button>
+  </div>
+
+  <!-- ═══════════════════ CACHE NOTIF ═══════════════════ -->
+  <div id="cacheNotif" class="cache-notif hidden">
+    <div class="cache-notif-inner">
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="7" stroke="currentColor" stroke-width="1.5"/><path d="M8 5v3.5L10 10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+      <span id="cacheMsg">File loaded from cache</span>
+      <button onclick="clearLocalStorage()" class="cache-clear">Clear</button>
+      <button onclick="document.getElementById('cacheNotif').classList.add('hidden')" class="cache-dismiss">&#x2715;</button>
+    </div>
+  </div>
+
+  <!-- ═══════════════════ APP SHELL ═══════════════════ -->
+  <div id="app" class="app hidden">
+
+    <!-- SIDEBAR -->
+    <nav class="sidebar">
+      <button class="sidebar-logo glow-logo" onclick="showWelcome()" title="Go to home" aria-label="CMDB Home">
+        <span class="logo-mark">CM</span><span class="logo-db">DB</span>
+      </button>
+      <div class="sidebar-nav">
+        
+        <button class="nav-btn active" data-page="upload" onclick="showPage('upload',this)" title="Upload">
+          <svg viewBox="0 0 20 20" fill="none"><path d="M10 13V4M6 7l4-4 4 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M3 14v1a2 2 0 002 2h10a2 2 0 002-2v-1" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+          <span>Upload</span>
+        </button>
+        <button class="nav-btn" data-page="dashboard" onclick="showPage('dashboard',this)" title="Summary &amp; Dashboard">
+          <svg viewBox="0 0 20 20" fill="none"><rect x="3" y="3" width="5" height="8" rx="1" stroke="currentColor" stroke-width="1.5"/><rect x="12" y="3" width="5" height="5" rx="1" stroke="currentColor" stroke-width="1.5"/><rect x="12" y="12" width="5" height="5" rx="1" stroke="currentColor" stroke-width="1.5"/><rect x="3" y="15" width="5" height="2" rx="1" stroke="currentColor" stroke-width="1.5"/></svg>
+          <span>Summary</span>
+        </button>
+        <button class="nav-btn" data-page="compare" onclick="showPage('compare',this)" title="Compare">
+          <svg viewBox="0 0 20 20" fill="none"><circle cx="7" cy="10" r="4" stroke="currentColor" stroke-width="1.5"/><circle cx="13" cy="10" r="4" stroke="currentColor" stroke-width="1.5"/></svg>
+          <span>Compare</span>
+        </button>
+        <button class="nav-btn" data-page="sheets" onclick="showPage('sheets',this)" title="Sheets — Raw Data">
+          <svg viewBox="0 0 20 20" fill="none"><rect x="3" y="4" width="14" height="12" rx="1.5" stroke="currentColor" stroke-width="1.5"/><path d="M3 8h14M7 8v8" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
+          <span>Sheets</span>
+        </button>
+        <button class="nav-btn" data-page="search" onclick="showPage('search',this)" title="Search">
+          <svg viewBox="0 0 20 20" fill="none"><circle cx="9" cy="9" r="5.5" stroke="currentColor" stroke-width="1.5"/><path d="M16 16l-3-3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+          <span>Search</span>
+        </button>
+        <button class="nav-btn" data-page="others" onclick="showPage('others',this)" title="Serial Lookup">
+          <svg viewBox="0 0 20 20" fill="none"><rect x="3" y="3" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.5"/><rect x="11" y="3" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.5"/><rect x="3" y="11" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.5"/><path d="M14 11v6M11 14h6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+          <span>Others</span>
+        </button>
+        <button class="nav-btn" data-page="charts" onclick="showPage('charts',this)" title="Charts">
+          <svg viewBox="0 0 20 20" fill="none"><path d="M3 14l4-5 4 3 4-6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M3 17h14" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+          <span>Charts</span>
+        </button>
+        <button class="nav-btn" data-page="delta" onclick="showPage('delta',this)" title="Delta — File Comparison">
+          <svg viewBox="0 0 20 20" fill="none"><path d="M10 3l7 14H3L10 3z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><path d="M10 10v4M10 16v.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+          <span>Delta</span>
+        </button>
+        <button class="nav-btn" data-page="obsolescencia" onclick="showPage('obsolescencia',this)" title="Obsolescencia">
+          <svg viewBox="0 0 20 20" fill="none"><circle cx="10" cy="10" r="7" stroke="currentColor" stroke-width="1.5"/><path d="M10 6v4l3 3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          <span>Obsolesc.</span>
+        </button>
+        
+      </div>
+      <div class="sidebar-bottom">
+        <button class="theme-toggle" onclick="toggleTheme()" title="Claro / Oscuro" aria-label="Cambiar claro u oscuro">
+          <svg class="icon-sun" viewBox="0 0 20 20" fill="none">
+            <circle cx="10" cy="10" r="3.5" stroke="currentColor" stroke-width="1.5"/>
+            <path d="M10 2v2M10 16v2M2 10h2M16 10h2M4.22 4.22l1.42 1.42M14.36 14.36l1.42 1.42M4.22 15.78l1.42-1.42M14.36 5.64l1.42-1.42" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+          </svg>
+          <svg class="icon-moon" viewBox="0 0 20 20" fill="none">
+            <path d="M17 10.5A7.5 7.5 0 019.5 3a7.5 7.5 0 100 14 7.5 7.5 0 007.5-6.5z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+          </svg>
+        </button>
+      </div>
+    </nav>
+
+    <!-- TOPBAR — frameless drag region + macOS traffic lights -->
+    <header class="topbar" id="appTopbar">
+      <!-- macOS traffic lights: Close · Minimize · Maximize -->
+      <div class="traffic-lights" id="trafficLights">
+        <button class="tl-btn tl-close"    id="tlClose"    title="Cerrar"     onclick="tlClose()">
+          <svg viewBox="0 0 8 8"><path d="M1.5 1.5l5 5M6.5 1.5l-5 5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
+        </button>
+        <button class="tl-btn tl-minimize" id="tlMinimize" title="Minimizar"  onclick="tlMinimize()">
+          <svg viewBox="0 0 8 8"><path d="M1 4h6" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
+        </button>
+        <button class="tl-btn tl-maximize" id="tlMaximize" title="Maximizar"  onclick="tlMaximize()">
+          <svg viewBox="0 0 8 8" id="tlMaxIcon"><path d="M1.5 3.5V1.5h2M4.5 1.5h2v2M6.5 4.5v2h-2M3.5 6.5h-2v-2" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
+      </div>
+      <div class="topbar-left">
+        <span class="topbar-page" id="topbarTitle">Upload</span>
+        <span class="topbar-sep">&middot;</span>
+        <span class="topbar-info" id="topbarInfo">No data loaded</span>
+      </div>
+      <div class="topbar-right">
+        <div class="data-badge">
+          <span id="badgeRecords">&mdash;</span>
+          <span class="data-badge-label">records</span>
+        </div>
+        <button class="btn-fullscreen" id="btnFullscreen" onclick="toggleFullscreen()" title="Pantalla completa (F11)">
+          <svg id="fsIconExpand" viewBox="0 0 16 16" fill="none"><path d="M2 6V3h3M11 3h3v3M14 10v3h-3M5 13H2v-3" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          <svg id="fsIconShrink" viewBox="0 0 16 16" fill="none" style="display:none"><path d="M5 2v3H2M14 5h-3V2M11 14v-3h3M2 11h3v3" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
+      </div>
+    </header>
+
+    <!-- MAIN -->
+    <main class="main" role="main" aria-label="Application content">
+
+      <!-- UPLOAD -->
+      <section id="page-upload" class="page active">
+        <div class="upload-grid">
+          <div class="upload-left">
+            <div class="upload-zone" id="dropZone" onclick="document.getElementById('fileInput').click()">
+              <input type="file" id="fileInput" accept=".xlsx,.xls,.xlsb,.csv,.tsv" style="display:none" onchange="handleFile(this.files[0])">
+              <div class="upload-zone-icon">
+                <svg viewBox="0 0 48 48" fill="none"><rect x="8" y="12" width="32" height="28" rx="3" stroke="currentColor" stroke-width="1.5"/><path d="M16 12V10a2 2 0 012-2h12a2 2 0 012 2v2" stroke="currentColor" stroke-width="1.5"/><path d="M24 22v10M20 26l4-4 4 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              </div>
+              <p class="upload-zone-text">Drop your file here</p>
+              <p class="upload-zone-hint">or click to browse</p>
+              <div class="upload-zone-types">.xlsx &middot; .xls &middot; .csv &middot; .tsv</div>
+            </div>
+            <div id="fileInfo" class="file-info hidden">
+              <div class="file-info-header">
+                <svg viewBox="0 0 20 20" fill="none"><path d="M4 4a2 2 0 012-2h6l4 4v10a2 2 0 01-2 2H6a2 2 0 01-2-2V4z" stroke="currentColor" stroke-width="1.5"/><path d="M12 2v4h4" stroke="currentColor" stroke-width="1.5"/></svg>
+                <div><div class="file-name" id="fileName">&mdash;</div><div class="file-meta" id="fileMeta">&mdash;</div></div>
+              </div>
+              <div class="progress-bar-wrap"><div class="progress-bar" id="progressBar" style="width:0%"></div></div>
+              <div class="sheet-list" id="sheetList"></div>
+              <div class="upload-actions">
+                <button class="btn-primary glow-btn" id="processBtn" onclick="processData()" style="display:none">
+                  <svg viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="5" stroke="currentColor" stroke-width="1.5"/><path d="M8 5v3l2 2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+                  Process Data
+                </button>
+                <button class="btn-ghost" onclick="clearFile()">Clear</button>
+              </div>
+            </div>
+            <!-- ── Quick reset when data is loaded ── -->
+            <div id="dataLoadedBanner" class="data-loaded-banner hidden">
+              <svg viewBox="0 0 16 16" fill="none" style="width:14px;height:14px;flex-shrink:0"><circle cx="8" cy="8" r="7" stroke="currentColor" stroke-width="1.5"/><path d="M8 5v3.5L10 10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+              <span id="dataLoadedMsg">Data loaded</span>
+              <button class="btn-ghost btn-sm reset-inline" onclick="resetAllData()" title="Clear all loaded data and restart">
+                <svg viewBox="0 0 16 16" fill="none"><path d="M3 3l10 10M13 3L3 13" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+                Clear &amp; Restart
+              </button>
+            </div>
+          </div>
+          <div class="upload-right">
+            <div class="info-panel">
+              <h3 class="panel-title">File Summary</h3>
+              <div class="info-grid">
+                <div class="info-card"><div class="info-num" id="infoTotal">&mdash;</div><div class="info-label">Total Records</div></div>
+                <div class="info-card"><div class="info-num" id="infoSerials">&mdash;</div><div class="info-label">Unique Serials</div></div>
+                <div class="info-card"><div class="info-num" id="infoSheets">&mdash;</div><div class="info-label">Sheets</div></div>
+                <div class="info-card"><div class="info-num" id="infoDups">&mdash;</div><div class="info-label">Duplicates</div></div>
+              </div>
+              <div class="steps">
+                <div class="step" id="step1"><span class="step-dot"></span><span>Read Excel file</span></div>
+                <div class="step" id="step2"><span class="step-dot"></span><span>Parse sheets</span></div>
+                <div class="step" id="step3"><span class="step-dot"></span><span>Build comparisons</span></div>
+                <div class="step" id="step4"><span class="step-dot"></span><span>Index data</span></div>
+                <div class="step" id="step5"><span class="step-dot"></span><span>Ready</span></div>
+              </div>
+            </div>
+            <!-- ── Snapshot for Delta comparison ── -->
+            <div class="info-panel" id="snapshotPanel" style="margin-top:16px">
+              <h3 class="panel-title">Delta Snapshot</h3>
+              <div id="snapshotStatus" style="font-size:.76rem;color:var(--txt3);margin-bottom:10px;line-height:1.5">
+                No snapshot saved yet. Load data and save a snapshot to enable comparison.
+              </div>
+              <button class="btn-ghost w-full" id="saveSnapshotBtn" onclick="manualSaveSnapshot()" disabled style="opacity:.4">
+                <svg viewBox="0 0 16 16" fill="none"><path d="M8 2v8M5 7l3 3 3-3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M2 12h12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+                Save Current as Baseline
+              </button>
+              <button class="btn-ghost w-full" id="clearSnapshotBtn" onclick="clearSnapshot()" style="margin-top:6px;display:none;font-size:.72rem;color:var(--txt3)">
+                Clear Snapshot
+              </button>
+            </div>
+            <div class="info-panel" style="margin-top:16px;border-color:rgba(218,54,51,.25)">
+              <h3 class="panel-title" style="color:var(--missing)">Reset</h3>
+              <p style="font-size:.78rem;color:var(--txt3);margin-bottom:14px;line-height:1.5">Clears all loaded data, filters, notes, cached files and the delta snapshot from this browser. This cannot be undone.</p>
+              <button class="btn-ghost w-full" style="border-color:rgba(218,54,51,.4);color:var(--missing)" onclick="resetAllData()">
+                <svg viewBox="0 0 16 16" fill="none"><path d="M3 3l10 10M13 3L3 13" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+                Reset All Data
+              </button>
+            </div>
+          </div>
+        </div>
+      </section>
+      <section id="page-compare" class="page">
+        <div class="compare-page-wrap">
+          <!-- Cards row -->
+          <div class="compare-top">
+            <div class="compare-cards" id="compareCards">
+              <div class="compare-placeholder">Load a file to see comparisons</div>
+            </div>
+          </div>
+          <!-- Editable spreadsheet below cards -->
+          <div class="compare-sheet-area" id="compareSheetArea" style="display:none">
+            <div class="others-sheet-toolbar" style="padding:0 0 8px 0">
+              <div class="others-sheet-tabs" id="compareSheetTabs"></div>
+              <div class="table-search-inline">
+                <svg viewBox="0 0 16 16" fill="none" style="width:11px;height:11px;color:var(--txt3);flex-shrink:0"><circle cx="7" cy="7" r="4" stroke="currentColor" stroke-width="1.5"/><path d="M13 13l-2.5-2.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+                <input type="text" id="compareSearch" class="sheets-search-input" placeholder="Buscar…" oninput="compareTableFilter()">
+              </div>
+              <span class="row-count-badge" id="compareRowCount"></span>
+              <div style="display:flex;align-items:center;gap:8px;margin-left:auto">
+                <button class="btn-ghost btn-sm" onclick="compareExportExcel()">
+                  <svg viewBox="0 0 16 16" fill="none"><path d="M8 3v8M5 8l3 3 3-3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M3 12h10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+                  Excel
+                </button>
+                <button class="btn-ghost btn-sm" onclick="compareResetEdits()">
+                  <svg viewBox="0 0 16 16" fill="none"><path d="M3 3l10 10M13 3L3 13" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+                  Reset Edits
+                </button>
+              </div>
+            </div>
+            <div class="others-sheet-table-wrap">
+              <div id="ht-compare" class="ht-container"></div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- SEARCH -->
+      <section id="page-search" class="page">
+        <div class="search-layout">
+          <aside class="filter-panel">
+            <div class="filter-header">
+              <span>Filters <span class="filter-active-badge" id="filterActiveBadge" style="display:none"></span></span>
+              <button class="filter-reset-btn" id="filterResetBtn" onclick="resetFilters()" title="Clear all filters">
+                <svg viewBox="0 0 16 16" fill="none" style="width:12px;height:12px"><path d="M3 8h10M8 3l5 5-5 5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                Reset all
+              </button>
+            </div>
+            <div class="filter-group"><label class="filter-label">Sheet</label><div class="filter-opts" id="filterSheet"></div></div>
+            <div class="filter-group"><label class="filter-label">Status</label><div class="filter-opts" id="filterStatus"></div></div>
+            <div class="filter-group"><label class="filter-label">Company</label><div class="filter-opts" id="filterEmpresa"></div></div>
+            <div class="filter-group"><label class="filter-label">OS</label><div class="filter-opts" id="filterOS"></div></div>
+            <div class="filter-group"><label class="filter-label">Manufacturer</label><div class="filter-opts" id="filterManufacturer"></div></div>
+            <div class="filter-group"><label class="filter-label">Chassis</label><div class="filter-opts" id="filterChassis"></div></div>
+          </aside>
+          <div class="search-main">
+            <div class="search-bar-wrap">
+              <svg viewBox="0 0 20 20" fill="none"><circle cx="9" cy="9" r="5.5" stroke="currentColor" stroke-width="1.5"/><path d="M16 16l-3-3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+              <input type="text" id="searchInput" class="search-input" placeholder="Buscar por serial, placa, hostname, OS, user, empresa… (Ctrl+F)" oninput="applyFilters()">
+            </div>
+            <div class="search-meta-bar">
+              <span class="table-meta" id="tableMeta">Load a file to get started</span>
+              <span class="row-count-badge" id="searchRowCount"></span>
+              <span class="search-total-badge" id="searchTotalBadge" style="display:none"></span>
+            </div>
+            <div class="table-wrap">
+              <div id="ht-search" class="ht-container"></div>
+            </div>
+            <div class="table-footer">
+              <button class="btn-ghost" id="showMoreBtn" onclick="showMoreRows()" style="display:none">Show more</button>
+              <button class="btn-ghost" onclick="exportSearch()">
+                <svg viewBox="0 0 16 16" fill="none"><path d="M8 3v8M5 8l3 3 3-3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M3 12h10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+                Export Excel
+              </button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- OTHERS -->
+      <section id="page-others" class="page">
+        <div class="page-header">
+          <h2>Others &mdash; Serial Lookup</h2>
+          <p>Paste serials manually or upload a spreadsheet — found records are enriched with your CMDB data.</p>
+        </div>
+        <div class="others-layout">
+          <div class="others-input-panel">
+            <!-- Spreadsheet upload zone -->
+            <div class="others-upload-zone" id="othersDropZone" onclick="document.getElementById('othersFileInput').click()" ondragover="othersOnDragOver(event)" ondragleave="othersOnDragLeave(event)" ondrop="othersOnDrop(event)">
+              <input type="file" id="othersFileInput" accept=".xlsx,.xls,.csv" style="display:none" onchange="othersLoadFile(this.files[0])">
+              <svg viewBox="0 0 24 24" fill="none" style="width:22px;height:22px;color:var(--txt3)"><path d="M12 3v10M9 6l3-3 3 3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M4 17v1a2 2 0 002 2h12a2 2 0 002-2v-1" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+              <div class="ouz-text">
+                <span class="ouz-main">Upload spreadsheet</span>
+                <span class="ouz-sub">or drag &amp; drop — .xlsx / .xls / .csv</span>
+              </div>
+              <span class="ouz-badge hidden" id="othersFileBadge"></span>
+            </div>
+            <!-- Column selector (shown after upload) -->
+            <div id="othersColSelector" class="others-col-selector hidden">
+              <label class="ctrl-label">Serial column in your file</label>
+              <select class="ctrl-select" id="othersColSelect" onchange="othersApplyColumn()">
+                <option value="">— select column —</option>
+              </select>
+            </div>
+            <label class="ctrl-label" style="margin-bottom:8px;display:block;">Serials to look up</label>
+            <textarea id="othersInput" class="others-textarea" placeholder="SN000001&#10;SN000002&#10;SN000003&#10;..." oninput="updateOthersCount()"></textarea>
+            <div class="others-input-footer">
+              <span class="others-char-count" id="othersCount">0 serials</span>
+              <div style="display:flex;gap:8px;">
+                <button class="btn-ghost btn-sm" onclick="clearOthers()">Clear</button>
+                <button class="btn-primary btn-sm glow-btn" onclick="lookupSerials()">
+                  <svg viewBox="0 0 16 16" fill="none"><circle cx="7" cy="7" r="4.5" stroke="currentColor" stroke-width="1.5"/><path d="M13 13l-2.5-2.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+                  Search
+                </button>
+              </div>
+            </div>
+            <div class="others-legend">
+              <div class="others-legend-item"><span class="others-dot found"></span>Found</div>
+              <div class="others-legend-item"><span class="others-dot missing"></span>Not found</div>
+            </div>
+            <div id="othersStats" class="others-stats hidden"></div>
+            <!-- Export buttons — shown after search, always below stats -->
+            <div id="othersExportBar" class="others-export-inline hidden">
+              <button class="btn-ghost btn-sm" onclick="othersExportExcel()">
+                <svg viewBox="0 0 16 16" fill="none"><path d="M8 3v8M5 8l3 3 3-3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M3 12h10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+                Export Excel
+              </button>
+              <button class="btn-ghost btn-sm" onclick="exportOthers('png')">
+                <svg viewBox="0 0 16 16" fill="none"><rect x="2" y="2" width="12" height="12" rx="2" stroke="currentColor" stroke-width="1.5"/><path d="M2 11l3-3 3 3 2-2 4 4" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                PNG
+              </button>
+              <button class="btn-ghost btn-sm" onclick="othersResetEdits()" style="margin-left:auto">
+                <svg viewBox="0 0 16 16" fill="none"><path d="M3 3l10 10M13 3L3 13" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+                Reset Edits
+              </button>
+            </div>
+          </div>
+          <div class="others-sheet-panel" id="othersResults">
+            <div class="others-placeholder" id="othersPlaceholder">
+              <svg viewBox="0 0 48 48" fill="none" style="width:40px;height:40px;color:var(--txt3);margin-bottom:12px"><circle cx="21" cy="21" r="13" stroke="currentColor" stroke-width="1.5"/><path d="M36 36l-5-5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+              <p>Enter serials or upload a spreadsheet to verify across sheets</p>
+            </div>
+            <div id="othersSheetWrap" class="hidden">
+              <div class="others-sheet-toolbar">
+                <div class="others-sheet-tabs" id="othersSheetTabs"></div>
+                <div class="table-search-inline">
+                  <svg viewBox="0 0 16 16" fill="none" style="width:11px;height:11px;color:var(--txt3);flex-shrink:0"><circle cx="7" cy="7" r="4" stroke="currentColor" stroke-width="1.5"/><path d="M13 13l-2.5-2.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+                  <input type="text" id="othersTableSearch" class="sheets-search-input" placeholder="Buscar…" oninput="othersTableFilter()">
+                </div>
+                <span class="row-count-badge" id="othersRowCount"></span>
+                <span class="others-sheet-hint" style="margin-left:auto">Click cell to edit</span>
+              </div>
+              <div class="others-sheet-table-wrap">
+                <div id="ht-others" class="ht-container"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- SHEETS — Raw editable view of each source sheet -->
+      <section id="page-sheets" class="page">
+        <div class="sheets-page-wrap">
+          <!-- Sheet selector toolbar -->
+          <div class="sheets-toolbar">
+            <div class="sheets-tab-group" id="sheetsTabGroup">
+              <button class="sheets-tab active" data-sheet="SvN"  onclick="sheetsSetTab('SvN',this)">SvN</button>
+              <button class="sheets-tab"        data-sheet="Snow" onclick="sheetsSetTab('Snow',this)">Snow</button>
+              <button class="sheets-tab"        data-sheet="Syma" onclick="sheetsSetTab('Syma',this)">Syma</button>
+              <button class="sheets-tab"        data-sheet="Disc" onclick="sheetsSetTab('Disc',this)">Disc</button>
+            </div>
+            <div class="sheets-toolbar-right">
+              <div class="sheets-search-wrap">
+                <svg viewBox="0 0 16 16" fill="none" style="width:12px;height:12px;color:var(--txt3);flex-shrink:0"><circle cx="7" cy="7" r="4" stroke="currentColor" stroke-width="1.5"/><path d="M13 13l-2.5-2.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+                <input type="text" id="sheetsSearchInput" class="sheets-search-input" placeholder="Buscar…" oninput="sheetsSearch()">
+              </div>
+              <span class="others-sheet-hint" id="sheetsMeta">—</span>
+              <span class="row-count-badge" id="sheetsRowCount"></span>
+              <button class="btn-ghost btn-sm" id="sheetsShowAllBtn" onclick="sheetsShowMoreRows()" style="display:none">Ver todas</button>
+              <span class="others-sheet-hint">Click cell to edit</span>
+              <button class="btn-ghost btn-sm" onclick="sheetsExportExcel()">
+                <svg viewBox="0 0 16 16" fill="none"><path d="M8 3v8M5 8l3 3 3-3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M3 12h10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+                Excel
+              </button>
+              <button class="btn-ghost btn-sm" onclick="sheetsResetEdits()">
+                <svg viewBox="0 0 16 16" fill="none"><path d="M3 3l10 10M13 3L3 13" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+                Reset Edits
+              </button>
+            </div>
+          </div>
+          <!-- Editable table -->
+          <div class="sheets-table-wrap" id="sheetsTableWrap">
+            <div class="compare-placeholder" id="sheetsPlaceholder">Load a file to view sheet data</div>
+            <div id="ht-sheets" class="ht-container" style="display:none"></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- DASHBOARD + SUMMARY (unified) -->
+      <section id="page-dashboard" class="page">
+        <div class="dash-scroll-wrap">
+          <div class="dash-tabs" id="dashTabs">
+            <button class="dash-tab active" onclick="setDashSheet('All',this)">All</button>
+            <button class="dash-tab" onclick="setDashSheet('SvN',this)">SvN</button>
+            <button class="dash-tab" onclick="setDashSheet('Snow',this)">Snow</button>
+            <button class="dash-tab" onclick="setDashSheet('Syma',this)">Syma</button>
+            <button class="dash-tab" onclick="setDashSheet('Disc',this)">Disc</button>
+          </div>
+          <!-- KPI row -->
+          <div class="kpi-row" id="kpiRow"></div>
+          <!-- Charts grid -->
+          <div class="dash-grid">
+            <div class="dash-panel dash-wide">
+              <div class="panel-head"><span class="panel-title">Distribution by Source</span></div>
+              <div class="donut-wrap">
+                <svg id="donutSvg" viewBox="0 0 220 220"></svg>
+                <div class="donut-legend" id="donutLegend"></div>
+              </div>
+            </div>
+            <div class="dash-panel"><div class="panel-head"><span class="panel-title">Top Manufacturers</span></div><div class="bar-list" id="barManufacturer"></div></div>
+            <div class="dash-panel"><div class="panel-head"><span class="panel-title">Top OS</span></div><div class="bar-list" id="barOS"></div></div>
+            <div class="dash-panel"><div class="panel-head"><span class="panel-title">Status</span></div><div class="bar-list" id="barStatus"></div></div>
+          </div>
+          <!-- Summary field distribution cards -->
+          <div class="dash-section-title">Field Distribution</div>
+          <div class="summary-grid" id="summaryGrid">
+            <div class="summary-placeholder">Load a file to view field distribution</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- CHARTS -->
+      <section id="page-charts" class="page">
+        <div class="ch-root">
+
+          <!-- ═══════════════════════════════════════
+               SIDEBAR DE CONTROLES
+          ═══════════════════════════════════════ -->
+          <aside class="ch-sidebar">
+
+            <!-- ── Tipo de gráfico ── -->
+            <div class="ch-group">
+              <div class="ch-label">Tipo</div>
+              <div class="ch-types" id="chartTypeBtns">
+                <button class="ch-type active" data-type="bar"      onclick="chSetType('bar',this)">
+                  <svg viewBox="0 0 20 18" fill="none"><rect x="1"  y="8"  width="4" height="10" rx="1" fill="currentColor" opacity=".45"/><rect x="8"  y="4"  width="4" height="14" rx="1" fill="currentColor" opacity=".7"/><rect x="15" y="1"  width="4" height="17" rx="1" fill="currentColor"/></svg>Barras
+                </button>
+                <button class="ch-type" data-type="hbar"     onclick="chSetType('hbar',this)">
+                  <svg viewBox="0 0 18 20" fill="none"><rect x="0" y="1"  width="10" height="4" rx="1" fill="currentColor" opacity=".45"/><rect x="0" y="8"  width="14" height="4" rx="1" fill="currentColor" opacity=".7"/><rect x="0" y="15" width="18" height="4" rx="1" fill="currentColor"/></svg>H.Barras
+                </button>
+                <button class="ch-type" data-type="line"     onclick="chSetType('line',this)">
+                  <svg viewBox="0 0 20 16" fill="none"><polyline points="1,14 6,6 11,10 17,2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><circle cx="6" cy="6" r="2" fill="currentColor"/><circle cx="17" cy="2" r="2" fill="currentColor"/></svg>Línea
+                </button>
+                <button class="ch-type" data-type="area"     onclick="chSetType('area',this)">
+                  <svg viewBox="0 0 20 16" fill="none"><polyline points="1,14 6,6 11,10 17,2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><polygon points="1,14 6,6 11,10 17,2 19,14" fill="currentColor" opacity=".25"/></svg>Área
+                </button>
+                <button class="ch-type" data-type="pie"      onclick="chSetType('pie',this)">
+                  <svg viewBox="0 0 20 20" fill="none"><path d="M10 2A8 8 0 0118 10L10 10Z" fill="currentColor"/><path d="M10 10L18 10A8 8 0 1 1 10 2" fill="currentColor" opacity=".38"/></svg>Torta
+                </button>
+                <button class="ch-type" data-type="donut"    onclick="chSetType('donut',this)">
+                  <svg viewBox="0 0 20 20" fill="none"><circle cx="10" cy="10" r="8" stroke="currentColor" stroke-width="5" stroke-dasharray="25 26" fill="none"/><circle cx="10" cy="10" r="8" stroke="currentColor" stroke-width="5" stroke-dasharray="10 41" stroke-dashoffset="-25" fill="none" opacity=".45"/></svg>Donut
+                </button>
+                <button class="ch-type" data-type="scatter"  onclick="chSetType('scatter',this)">
+                  <svg viewBox="0 0 20 20" fill="none"><circle cx="5" cy="14" r="2" fill="currentColor" opacity=".45"/><circle cx="10" cy="8" r="2.5" fill="currentColor"/><circle cx="15" cy="5" r="1.5" fill="currentColor" opacity=".7"/><circle cx="13" cy="12" r="2" fill="currentColor" opacity=".55"/></svg>Scatter
+                </button>
+                <button class="ch-type" data-type="treemap"  onclick="chSetType('treemap',this)">
+                  <svg viewBox="0 0 20 20" fill="none"><rect x="1" y="1" width="11" height="11" rx="1" fill="currentColor" opacity=".7"/><rect x="14" y="1" width="5"  height="5"  rx="1" fill="currentColor" opacity=".45"/><rect x="1" y="14" width="5"  height="5"  rx="1" fill="currentColor" opacity=".45"/><rect x="8" y="14" width="11" height="5"  rx="1" fill="currentColor" opacity=".6"/><rect x="14" y="8" width="5"  height="4"  rx="1" fill="currentColor" opacity=".3"/></svg>Treemap
+                </button>
+                <button class="ch-type" data-type="radar"    onclick="chSetType('radar',this)">
+                  <svg viewBox="0 0 20 20" fill="none"><polygon points="10,2 18,7 15,16 5,16 2,7" stroke="currentColor" stroke-width="1.4" fill="currentColor" fill-opacity=".15"/><polygon points="10,6 14,8.5 12.5,13 7.5,13 6,8.5" stroke="currentColor" stroke-width="1" fill="currentColor" fill-opacity=".25"/></svg>Radar
+                </button>
+                <button class="ch-type" data-type="sunburst" onclick="chSetType('sunburst',this)">
+                  <svg viewBox="0 0 20 20" fill="none"><circle cx="10" cy="10" r="2.5" fill="currentColor"/><circle cx="10" cy="10" r="5.5" stroke="currentColor" stroke-width="2" fill="none" opacity=".55"/><circle cx="10" cy="10" r="8.5" stroke="currentColor" stroke-width="2" fill="none" opacity=".28"/></svg>Sunburst
+                </button>
+              </div>
+            </div>
+
+            <!-- ── Campo principal (eje X / categoría) ── -->
+            <div class="ch-group" id="chFieldGroup">
+              <div class="ch-label">Campo</div>
+              <select class="ch-select" id="chartXAxis" onchange="chAutoRender()">
+                <option value="">— seleccionar —</option>
+              </select>
+            </div>
+
+            <!-- ── Segundo campo (solo para scatter / radar) ── -->
+            <div class="ch-group" id="chField2Group" style="display:none">
+              <div class="ch-label">Campo Y / comparación</div>
+              <select class="ch-select" id="chartYField" onchange="chAutoRender()">
+                <option value="">— seleccionar —</option>
+              </select>
+            </div>
+
+            <!-- ── Niveles Sunburst ── -->
+            <div class="ch-group" id="chSunburstGroup" style="display:none">
+              <div class="ch-label ch-label-icon">
+                <svg viewBox="0 0 14 14" fill="none" style="width:10px;height:10px"><circle cx="7" cy="7" r="6" stroke="currentColor" stroke-width="1.2"/><circle cx="7" cy="7" r="3.5" stroke="currentColor" stroke-width="1.2"/><circle cx="7" cy="7" r="1.5" fill="currentColor"/></svg>
+                Niveles
+              </div>
+              <select class="ch-select" id="chartGroupBy"  onchange="chAutoRender()"><option value="">— nivel 1 —</option></select>
+              <select class="ch-select" id="chartGroupBy2" onchange="chAutoRender()" style="margin-top:4px"><option value="">— nivel 2 —</option></select>
+              <select class="ch-select" id="chartGroupBy3" onchange="chAutoRender()" style="margin-top:4px"><option value="">— nivel 3 (opc.) —</option></select>
+            </div>
+
+            <!-- ── Fuente ── -->
+            <div class="ch-group">
+              <div class="ch-label">Fuente</div>
+              <select class="ch-select" id="chartSource" onchange="chUpdateFilters(); chAutoRender()">
+                <option value="All">Todas las hojas</option>
+                <option value="SvN">SvN</option>
+                <option value="Snow">Snow</option>
+                <option value="Syma">Syma</option>
+                <option value="Disc">Disc</option>
+              </select>
+            </div>
+
+            <!-- ── Filtro rápido ── -->
+            <div class="ch-group">
+              <div class="ch-label">Filtro</div>
+              <select class="ch-select" id="chartQuickField" onchange="chUpdateFilters(); chAutoRender()">
+                <option value="">— campo —</option>
+              </select>
+              <select class="ch-select" id="chartQuickValue" onchange="chAutoRender()" style="margin-top:4px">
+                <option value="">— valor —</option>
+              </select>
+            </div>
+
+            <!-- ── Máx. categorías ── -->
+            <div class="ch-group">
+              <div class="ch-label">Top N</div>
+              <select class="ch-select" id="chartMax" onchange="chAutoRender()">
+                <option value="10">Top 10</option>
+                <option value="15">Top 15</option>
+                <option value="20" selected>Top 20</option>
+                <option value="30">Top 30</option>
+                <option value="50">Top 50</option>
+                <option value="0">Todos</option>
+              </select>
+            </div>
+
+            <!-- ── Paleta de colores ── -->
+            <div class="ch-group">
+              <div class="ch-label">Paleta</div>
+              <div class="ch-palette" id="palettePicker">
+                <button class="ch-swatch active" data-palette="amber"  onclick="setPalette('amber',this)"  title="Ámbar">
+                  <span class="ch-strip" style="background:linear-gradient(90deg,#92400e,#d97706,#f59e0b,#fcd34d)"></span>
+                  <span class="ch-swname">Ámbar</span>
+                </button>
+                <button class="ch-swatch" data-palette="mono"   onclick="setPalette('mono',this)"   title="Mono">
+                  <span class="ch-strip" style="background:linear-gradient(90deg,#111,#545452,#a2a29c,#d6d6cc)"></span>
+                  <span class="ch-swname">Mono</span>
+                </button>
+                <button class="ch-swatch" data-palette="warm"   onclick="setPalette('warm',this)"   title="Warm">
+                  <span class="ch-strip" style="background:linear-gradient(90deg,#7a3200,#e05f0a,#f5a860,#fde8c0)"></span>
+                  <span class="ch-swname">Cálida</span>
+                </button>
+                <button class="ch-swatch" data-palette="cool"   onclick="setPalette('cool',this)"   title="Cool">
+                  <span class="ch-strip" style="background:linear-gradient(90deg,#003d7a,#1a88e0,#88ccf8,#daf0ff)"></span>
+                  <span class="ch-swname">Fría</span>
+                </button>
+                <button class="ch-swatch" data-palette="forest" onclick="setPalette('forest',this)" title="Forest">
+                  <span class="ch-strip" style="background:linear-gradient(90deg,#1a5200,#44a800,#90e050,#dcfab0)"></span>
+                  <span class="ch-swname">Bosque</span>
+                </button>
+                <button class="ch-swatch" data-palette="rose"   onclick="setPalette('rose',this)"   title="Rose">
+                  <span class="ch-strip" style="background:linear-gradient(90deg,#5a0025,#c8005a,#f068a8,#fcd8ec)"></span>
+                  <span class="ch-swname">Rosa</span>
+                </button>
+              </div>
+            </div>
+
+            <!-- ── Acciones ── -->
+            <div class="ch-actions">
+              <button class="btn-ghost ch-export" onclick="exportChartPNG()" title="Exportar PNG">
+                <svg viewBox="0 0 16 16" fill="none"><rect x="2" y="2" width="12" height="12" rx="1.5" stroke="currentColor" stroke-width="1.3"/><path d="M2 10.5l3-3 3 3 2-2.5 4 4" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                PNG
+              </button>
+              <button class="btn-ghost ch-export" onclick="exportChartExcel()" title="Exportar Excel">
+                <svg viewBox="0 0 16 16" fill="none"><path d="M8 3v8M5 8l3 3 3-3" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/><path d="M3 13h10" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
+                Excel
+              </button>
+            </div>
+          </aside>
+
+          <!-- ═══════════════════════════════════════
+               ÁREA DEL CHART
+          ═══════════════════════════════════════ -->
+          <div class="ch-area">
+
+            <!-- Topbar: título + meta + acciones rápidas -->
+            <div class="ch-topbar">
+              <div class="ch-title-block">
+                <div class="ch-title" id="chartTitleText">Selecciona un campo para comenzar</div>
+                <div class="ch-meta"  id="chartMeta"></div>
+              </div>
+              <div class="ch-topbar-actions">
+                <!-- Dropdown de campos rápidos -->
+                <select class="ch-quick-select" id="chQuickField" onchange="chQuickSwitch(this.value)" title="Cambiar campo rápidamente">
+                  <option value="">Campo rápido…</option>
+                </select>
+              </div>
+            </div>
+
+            <!-- Sunburst breadcrumb + back -->
+            <div id="sunburstNav" class="sb-nav" style="display:none">
+              <div class="sb-breadcrumb" id="sbBreadcrumb">
+                <span class="sb-crumb sb-root" onclick="sbZoomRoot()">⬤ Todo</span>
+              </div>
+              <button class="sb-back-btn" id="sbBackBtn" onclick="sbZoomBack()" style="display:none">
+                <svg viewBox="0 0 16 16" fill="none" style="width:11px;height:11px"><path d="M10 3L5 8l5 5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                Atrás
+              </button>
+            </div>
+
+            <!-- ECharts mount point -->
+            <div id="echartsContainer" class="ch-canvas"></div>
+
+            <!-- Empty / loading state -->
+            <div id="chEmpty" class="ch-empty">
+              <svg viewBox="0 0 56 56" fill="none" width="48" height="48">
+                <rect x="4"  y="26" width="10" height="26" rx="2" stroke="currentColor" stroke-width="1.5"/>
+                <rect x="20" y="16" width="10" height="36" rx="2" stroke="currentColor" stroke-width="1.5"/>
+                <rect x="36" y="8"  width="10" height="44" rx="2" stroke="currentColor" stroke-width="1.5"/>
+                <path d="M2 54h52" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+              </svg>
+              <div id="chEmptyMsg" style="max-width:260px;line-height:1.7">
+                Carga datos y selecciona un campo para generar un gráfico dinámico.
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </section>
+
+
+
+      <!-- OBSOLESCENCIA -->
+      <section id="page-obsolescencia" class="page">
+        <div class="obs-page-wrap">
+          <!-- Toolbar -->
+          <div class="obs-toolbar">
+            <div class="obs-toolbar-left">
+              <h2 class="obs-title">Obsolescencia</h2>
+              <span class="obs-sub" id="obsSub">Carga un archivo para analizar ciclo de vida</span>
+            </div>
+            <div class="obs-toolbar-right">
+              <div class="obs-filter-group">
+                <label class="obs-filter-label">Empresa</label>
+                <select class="obs-select" id="obsFilterEmpresa" onchange="obsApplyFilters()">
+                  <option value="">Todas</option>
+                </select>
+              </div>
+              <div class="obs-filter-group">
+                <label class="obs-filter-label">Status</label>
+                <select class="obs-select" id="obsFilterStatus" onchange="obsApplyFilters()">
+                  <option value="">Todos</option>
+                </select>
+              </div>
+              <button class="btn-ghost btn-sm" onclick="obsExportExcel()">
+                <svg viewBox="0 0 16 16" fill="none"><path d="M8 3v8M5 8l3 3 3-3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M3 12h10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+                Excel
+              </button>
+            </div>
+          </div>
+
+          <!-- KPI cards -->
+          <div class="obs-kpi-row" id="obsKpiRow"></div>
+
+          <!-- Charts row -->
+          <div class="obs-charts-grid" id="obsChartsGrid">
+            <div class="obs-chart-panel">
+              <div class="panel-head"><span class="panel-title">Estado HW (O.HW)</span></div>
+              <div id="obsEchartsHW" class="obs-echart"></div>
+            </div>
+            <div class="obs-chart-panel">
+              <div class="panel-head"><span class="panel-title">Estado Software (O.So)</span></div>
+              <div id="obsEchartsSW" class="obs-echart"></div>
+            </div>
+            <div class="obs-chart-panel">
+              <div class="panel-head"><span class="panel-title">EOL Timeline (u_eol)</span></div>
+              <div id="obsEchartsEOL" class="obs-echart"></div>
+            </div>
+            <div class="obs-chart-panel">
+              <div class="panel-head"><span class="panel-title">Antigüedad (start_date)</span></div>
+              <div id="obsEchartsAge" class="obs-echart"></div>
+            </div>
+          </div>
+
+          <!-- Detail table -->
+          <div class="obs-table-section">
+            <div class="obs-table-header">
+              <span class="panel-title" id="obsTableTitle">Detalle</span>
+              <div class="obs-table-search-wrap">
+                <svg viewBox="0 0 16 16" fill="none" style="width:11px;height:11px;color:var(--txt3)"><circle cx="7" cy="7" r="4" stroke="currentColor" stroke-width="1.5"/><path d="M13 13l-2.5-2.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+                <input type="text" id="obsTableSearch" class="sheets-search-input" placeholder="Buscar…" oninput="obsTableFilter()">
+              </div>
+              <span class="others-sheet-hint" id="obsTableMeta">—</span>
+              <span class="row-count-badge" id="obsRowCount"></span>
+              <button class="btn-ghost btn-sm" id="obsShowAllBtn" onclick="obsShowAllRows()" style="display:none">Ver todas las filas</button>
+            </div>
+            <div class="obs-table-wrap">
+              <div id="ht-obs" class="ht-container"></div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- DELTA — FILE COMPARISON -->
+      <section id="page-delta" class="page">
+        <div class="page-header" style="display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:12px">
+          <div>
+            <h2>Delta — File Comparison</h2>
+            <p>Compare two CMDB snapshots field by field. Save a baseline from the Upload page, then load a new file.</p>
+          </div>
+          <div style="display:flex;gap:8px;flex-shrink:0">
+            <button class="btn-ghost btn-sm" id="deltaExportBtn" onclick="exportDelta('excel')" style="display:none">
+              <svg viewBox="0 0 16 16" fill="none"><path d="M8 3v8M5 8l3 3 3-3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M3 12h10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+              Export Excel
+            </button>
+          </div>
+        </div>
+        <!-- How-to banner (shown when no snapshot) -->
+        <div id="deltaHowTo" class="delta-howto">
+          <div class="delta-howto-steps">
+            <div class="dhs-step"><span class="dhs-num">1</span><span>Load your first CMDB file</span></div>
+            <div class="dhs-arrow">→</div>
+            <div class="dhs-step"><span class="dhs-num">2</span><span>Click <strong>Save Current as Baseline</strong> on the Upload page</span></div>
+            <div class="dhs-arrow">→</div>
+            <div class="dhs-step"><span class="dhs-num">3</span><span>Load a newer CMDB file</span></div>
+            <div class="dhs-arrow">→</div>
+            <div class="dhs-step"><span class="dhs-num">4</span><span>Return here to see all differences</span></div>
+          </div>
+        </div>
+        <!-- Comparison content (shown when snapshot exists) -->
+        <div id="deltaContainer"></div>
+      </section>
+
+    </main>
+  </div>
+
+  <!-- ═══════════════════ MODAL (Compare / Chart Drill-down) ═══════════════════ -->
+  <div id="modal" class="modal-overlay hidden" onclick="closeModal(event)">
+    <div class="modal-box">
+      <div class="modal-head">
+        <div>
+          <h3 class="modal-title" id="modalTitle">&mdash;</h3>
+          <p class="modal-sub" id="modalSub">&mdash;</p>
+        </div>
+        <div class="modal-actions">
+          <input type="text" class="modal-search" id="modalSearch" placeholder="Filter…" oninput="filterModal()">
+          <button class="btn-ghost btn-sm" onclick="exportModal('excel')">Excel</button>
+          <button class="btn-ghost btn-sm" onclick="exportModal('png')">PNG</button>
+          <button class="modal-close" onclick="document.getElementById('modal').classList.add('hidden')">&#x2715;</button>
+        </div>
+      </div>
+      <div class="modal-body">
+        <div class="table-scroll-wrap">
+          <div id="ht-modal" class="ht-container"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════ FILTER DETAIL POPOVER ═══════════════════ -->
+  <div id="filterPopBg" class="filter-pop-bg hidden" onclick="closeFilterPop()"></div>
+  <div id="filterPopover" class="filter-popover hidden">
+    <div class="filter-popover-head">
+      <div>
+        <div class="filter-popover-title" id="filterPopTitle">&mdash;</div>
+        <div class="filter-popover-sub" id="filterPopSub">&mdash;</div>
+      </div>
+      <div style="display:flex;gap:6px;align-items:center">
+        <button class="btn-ghost btn-sm" onclick="exportFilterPop('excel')">Excel</button>
+        <button class="btn-ghost btn-sm" onclick="exportFilterPop('png')">PNG</button>
+        <button class="modal-close" onclick="closeFilterPop()">&#x2715;</button>
+      </div>
+    </div>
+    <div class="filter-popover-body">
+      <div id="ht-filterpop" class="ht-container"></div>
+    </div>
+  </div>
+
+  <!-- NOTES WIDGET -->
+  <div class="notes-fab glow-fab" onclick="notesToggle()" title="Notes">
+    <svg viewBox="0 0 20 20" fill="none"><path d="M4 5a1 1 0 011-1h10a1 1 0 011 1v8a1 1 0 01-1 1H9l-4 3V5z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></svg>
+    <span class="notes-badge hidden" id="notesBadge">0</span>
+  </div>
+  <div class="notes-panel hidden" id="notesPanel">
+    <div class="notes-head" id="notesDragHandle">
+      <span class="notes-title">Notes</span>
+      <div class="notes-head-actions">
+        <button onclick="notesNewNote()" title="New note">+</button>
+        <button onclick="notesToggle()">&#x2715;</button>
+      </div>
+    </div>
+    <div id="notesListView"><div class="notes-list" id="notesList"></div></div>
+    <div id="notesEditorView" class="hidden">
+      <div class="notes-editor">
+        <button class="btn-link notes-back" onclick="notesShowList()">&#8592; Back</button>
+        <input type="text" id="noteTitle" class="notes-title-input" placeholder="Title…" maxlength="60">
+        <textarea id="noteBody" class="notes-body-input" placeholder="Write your note…" maxlength="5000"></textarea>
+        <div class="notes-editor-footer">
+          <span class="notes-char" id="notesChar">0/5000</span>
+          <button class="btn-primary btn-sm glow-btn" onclick="notesSave()">Save</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!--
+    JAVASCRIPT LIBRARIES — Local-first, CDN fallback
+    ─────────────────────────────────────────────────
+    Priority: ./lib/  (downloaded by download-libs.sh)
+              CDN     (requires internet)
+    Both XLSX and ECharts are deferred so they don't block HTML parsing.
+  -->
+
+  <!--
+    LIBRARIES: sequential loader
+    Order: XLSX → ECharts → HOT CSS → HOT JS → app.js
+    Each step waits for the previous. Local files first, CDN fallback.
+  -->
+  <script>
+  (function(){
+    function libErr(){ var e=document.getElementById('libError'); if(e) e.style.display='flex'; }
+
+    function loadScript(local, cdn, onOk, onFail){
+      var s = document.createElement('script');
+      s.src = local;
+      s.onload = function(){ if(onOk) onOk(); };
+      s.onerror = function(){
+        if(!cdn){ if(onFail) onFail(); return; }
+        var f = document.createElement('script');
+        f.src = cdn;
+        f.onload = function(){ if(onOk) onOk(); };
+        f.onerror = function(){ if(onFail) onFail(); };
+        document.head.appendChild(f);
+      };
+      document.head.appendChild(s);
+    }
+
+    function loadCss(local, cdn, onOk){
+      var link = document.createElement('link');
+      link.rel = 'stylesheet';
+      link.href = local;
+      link.onload = function(){ if(onOk) onOk(); };
+      link.onerror = function(){
+        var f = document.createElement('link');
+        f.rel = 'stylesheet';
+        f.href = cdn;
+        f.onload = function(){ if(onOk) onOk(); };
+        f.onerror = function(){ if(onOk) onOk(); }; // CSS fail is non-fatal
+        document.head.appendChild(f);
+      };
+      document.head.appendChild(link);
+    }
+
+    // Step 1: XLSX
+    loadScript(
+      'lib/xlsx.full.min.js',
+      'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js',
+      function(){
+        // Step 2: ECharts
+        loadScript(
+          'lib/echarts.min.js',
+          'https://cdnjs.cloudflare.com/ajax/libs/echarts/5.4.3/echarts.min.js',
+          function(){
+            // Step 3: HOT CSS (non-blocking on fail)
+            loadCss(
+              'lib/handsontable.full.min.css',
+              'https://cdn.jsdelivr.net/npm/handsontable@14.6.1/dist/handsontable.full.min.css',
+              function(){
+                // Step 4: HOT JS
+                loadScript(
+                  'lib/handsontable.full.min.js',
+                  'https://cdn.jsdelivr.net/npm/handsontable@14.6.1/dist/handsontable.full.min.js',
+                  function(){
+                    // Step 5: app.js — only after ALL libs ready
+                    loadScript('app.js', null, null, libErr);
+                  },
+                  libErr
+                );
+              }
+            );
+          },
+          libErr
+        );
+      },
+      libErr
+    );
+  })();
+  </script>
+</body>
+</html>

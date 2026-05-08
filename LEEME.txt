@@ -1,0 +1,43 @@
+CMDB — Instrucciones Electron
+================================
+
+REQUISITO: Node.js LTS  →  https://nodejs.org
+
+PASOS (en orden):
+
+  1-download-libs.bat
+     Descarga librerias JS/CSS y fuentes woff2.
+     Requiere internet. Solo se ejecuta una vez.
+
+  2-run-dev.bat
+     Abre CMDB como app de escritorio (modo desarrollo).
+     Util para probar sin generar instalador.
+
+  3-build-exe.bat
+     Genera en la carpeta dist\:
+       CMDB Setup 1.0.0.exe     <- instala con acceso directo
+       CMDB-portable-1.0.0.exe  <- portable sin instalar
+
+NOTAS:
+  - Las fuentes son opcionales; si faltan la app usa fuentes del sistema.
+  - Los archivos lib\ y fonts\ deben estar presentes para que la app
+    funcione offline (sin internet).
+  - La primera vez que corres 3-build-exe.bat descarga ~100MB del
+    runtime de Electron (solo esa vez).
+
+ESTRUCTURA:
+  cmdb-electron\
+  |-- main.js               proceso principal Electron
+  |-- preload.js            bridge seguro main <-> renderer
+  |-- index.html            interfaz de la app
+  |-- app.js                logica
+  |-- styles.css            estilos
+  |-- package.json          configuracion npm y electron-builder
+  |-- 1-download-libs.bat   descargar dependencias offline
+  |-- 2-run-dev.bat         ejecutar en modo dev
+  |-- 3-build-exe.bat       generar instalador exe
+  |-- assets\
+  |   |-- icon.ico          icono Windows
+  |   |-- icon.png          icono PNG
+  |-- lib\                  (se llena con 1-download-libs.bat)
+  |-- fonts\                (se llena con 1-download-libs.bat)
