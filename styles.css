@@ -247,22 +247,22 @@ kbd{font-family:'IBM Plex Mono',monospace;font-size:.75rem;padding:2px 6px;borde
   transition:width .3s ease, transform .3s ease;
 }
 
-.sidebar-logo{width:100%;height:var(--topbar-h);display:flex;align-items:center;justify-content:center;border-bottom:1px solid var(--brd);font-family:'IBM Plex Mono',monospace;font-weight:600;font-size:.78rem;letter-spacing:.08em}
+.sidebar-logo{width:100%;height:var(--topbar-h);display:flex;align-items:center;justify-content:center;border-bottom:1px solid var(--brd);font-family:'IBM Plex Mono',monospace;font-weight:600;fon[...]
 .logo-mark{color:var(--txt)}
 .logo-db{color:var(--txt3)}
 .sidebar-nav{flex:1;width:100%;display:flex;flex-direction:column;padding:8px 0;gap:2px}
-.nav-btn{width:100%;border:none;background:none;cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;padding:10px 0;color:var(--txt3);font-size:.58rem;font-weight:500;letter-spacing:.05em}
+.nav-btn{width:100%;border:none;background:none;cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;padding:10px 0;color:var(--txt3);font-size:.58r[...]
 .nav-btn svg{width:18px;height:18px}
 .nav-btn:hover{color:var(--txt);background:var(--hover)}
 .nav-btn.active{color:var(--txt);border-left:2px solid var(--accent);background:var(--hover)}
 .sidebar-bottom{width:100%;display:flex;align-items:center;justify-content:center;padding:8px 0;border-top:1px solid var(--brd)}
-.theme-toggle{width:36px;height:36px;border:1px solid var(--brd2);border-radius:2px;background:none;cursor:pointer;display:flex;align-items:center;justify-content:center;color:var(--txt2);transition:all .2s}
+.theme-toggle{width:36px;height:36px;border:1px solid var(--brd2);border-radius:2px;background:none;cursor:pointer;display:flex;align-items:center;justify-content:center;color:var(--txt2);transit[...]
 .theme-toggle svg{width:16px;height:16px}
 [data-theme="light"] .icon-moon{display:none}
 [data-theme="dark"] .icon-sun{display:none}
 
 /* TOPBAR */
-.topbar{height:var(--topbar-h);background:var(--bg2);border-bottom:1px solid var(--brd);display:flex;align-items:center;justify-content:space-between;padding:0 12px 0 0;-webkit-app-region:drag;user-select:none}
+.topbar{height:var(--topbar-h);background:var(--bg2);border-bottom:1px solid var(--brd);display:flex;align-items:center;justify-content:space-between;padding:0 12px 0 0;-webkit-app-region:drag;us[...]
 .topbar-left{display:flex;align-items:center;gap:8px}
 .topbar-page{font-family:'IBM Plex Mono',monospace;font-size:clamp(.65rem, 1vw, .78rem);font-weight:600;color:var(--txt)}
 .topbar-sep{color:var(--txt3)}
@@ -328,9 +328,9 @@ kbd{font-family:'IBM Plex Mono',monospace;font-size:.75rem;padding:2px 6px;borde
 .page-header p{font-size:clamp(.7rem, 1.5vw, .82rem);color:var(--txt3)}
 
 /* ─── BUTTONS ─── */
-.btn-primary{display:inline-flex;align-items:center;gap:6px;padding:9px 18px;background:var(--accent);color:var(--accent-inv);border:none;border-radius:2px;cursor:pointer;font-family:'IBM Plex Mono',monospace;font-size:.8rem;font-weight:600;white-space:nowrap;-webkit-app-region:no-drag}
+.btn-primary{display:inline-flex;align-items:center;gap:6px;padding:9px 18px;background:var(--accent);color:var(--accent-inv);border:none;border-radius:2px;cursor:pointer;font-family:'IBM Plex Mo[...]
 .btn-primary svg{width:14px;height:14px}
-.btn-ghost{display:inline-flex;align-items:center;gap:6px;padding:9px 18px;background:none;color:var(--txt2);border:1px solid var(--brd2);border-radius:2px;cursor:pointer;font-family:'IBM Plex Mono',monospace;font-size:.8rem;white-space:nowrap;-webkit-app-region:no-drag}
+.btn-ghost{display:inline-flex;align-items:center;gap:6px;padding:9px 18px;background:none;color:var(--txt2);border:1px solid var(--brd2);border-radius:2px;cursor:pointer;font-family:'IBM Plex Mo[...]
 .btn-ghost:hover{background:var(--hover);color:var(--txt)}
 .btn-ghost svg{width:14px;height:14px}
 .btn-link{background:none;border:none;cursor:pointer;font-size:0.775rem;color:var(--txt3);font-family:'IBM Plex Mono',monospace;padding:0;-webkit-app-region:no-drag}
@@ -376,7 +376,7 @@ kbd{font-family:'IBM Plex Mono',monospace;font-size:.75rem;padding:2px 6px;borde
   padding:14px;overflow-y:auto;min-height:0;
   scrollbar-width:thin;scrollbar-color:var(--brd2) transparent;
 }
-.filter-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;font-family:'IBM Plex Mono',monospace;font-size:clamp(.6rem, 1vw, .72rem);letter-spacing:.08em;text-transform:uppercase;color:var(--txt3)}
+.filter-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;font-family:'IBM Plex Mono',monospace;font-size:clamp(.6rem, 1vw, .72rem);letter-spacing:.08em;text[...]
 .filter-label{display:block;font-size:clamp(.6rem, 1vw, .7rem);color:var(--txt3);font-family:'IBM Plex Mono',monospace;margin-bottom:6px;letter-spacing:.06em;text-transform:uppercase}
 .filter-opts{display:flex;flex-direction:column;gap:3px}
 .filter-opt{display:flex;align-items:center;gap:6px;font-size:clamp(.65rem, 1vw, .78rem);cursor:pointer;padding:3px 6px;border-radius:2px;transition:background .15s}
@@ -422,12 +422,12 @@ kbd{font-family:'IBM Plex Mono',monospace;font-size:.75rem;padding:2px 6px;borde
   scrollbar-width:thin;
   scrollbar-color:var(--brd2) transparent;
 }
-.others-textarea{width:100%;flex:1;min-height:120px;max-height:320px;padding:12px;border:1px solid var(--brd2);border-radius:2px;background:var(--bg2);color:var(--txt);font-family:'IBM Plex Mono',monospace;font-size:clamp(.7rem, 1.5vw, .78rem);outline:none;transition:border-color .2s}
+.others-textarea{width:100%;flex:1;min-height:120px;max-height:320px;padding:12px;border:1px solid var(--brd2);border-radius:2px;background:var(--bg2);color:var(--txt);font-family:'IBM Plex Mono'[...]
 .others-textarea:focus{border-color:var(--txt2)}
 
 /* ─── DASHBOARD ─── */
 .dash-tabs{display:flex;gap:0;margin-bottom:20px;border-bottom:1px solid var(--brd);overflow-x:auto;flex-wrap:nowrap}
-.dash-tab{padding:9px 18px;background:none;border:none;border-bottom:2px solid transparent;cursor:pointer;font-family:'IBM Plex Mono',monospace;font-size:clamp(.65rem, 1vw, .76rem);letter-spacing:.04em;color:var(--txt3);white-space:nowrap;flex-shrink:0;-webkit-app-region:no-drag}
+.dash-tab{padding:9px 18px;background:none;border:none;border-bottom:2px solid transparent;cursor:pointer;font-family:'IBM Plex Mono',monospace;font-size:clamp(.65rem, 1vw, .76rem);letter-spacing[...]
 .dash-tab.active{color:var(--txt);border-bottom-color:var(--accent)}
 .kpi-row{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin-bottom:20px}
 .kpi-card{background:var(--bg2);border:1px solid var(--brd);border-radius:3px;padding:16px 14px;transition:all .2s;overflow:hidden;position:relative}
@@ -736,4 +736,26 @@ kbd{font-family:'IBM Plex Mono',monospace;font-size:.75rem;padding:2px 6px;borde
   }
 }
 
-/* DEFAULT (existing styles continue below) */
+/* Fix file preview and sidebar icon sizes (overrides to prevent very large SVGs)
+   The file preview SVG in .file-info-header can come from embedded SVGs and needs explicit constraints. */
+.file-info-header svg {
+  width: 140px;
+  height: 140px;
+  max-width: 100%;
+  color: var(--txt3);
+}
+
+/* Make sidebar icons slightly larger and consistent */
+.sidebar .nav-btn svg {
+  width: 20px;
+  height: 20px;
+}
+
+/* Smaller upload icon for the drop area */
+.upload-zone-icon svg {
+  width: 64px; /* override clamp on some devices */
+  height: 64px;
+  max-width: 100%;
+}
+
+/* End of custom overrides */
